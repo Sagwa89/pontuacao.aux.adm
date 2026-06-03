@@ -237,7 +237,6 @@
 
 <div class="wrap">
 
-  <!-- RANKING -->
   <div class="ranking-section">
     <div class="section-title">Classificação geral</div>
     <div class="ranking-list" id="rankingList">
@@ -245,7 +244,6 @@
     </div>
   </div>
 
-  <!-- FORM -->
   <div class="form-card">
     <h2>Adicionar minha pontuação</h2>
     <div class="fields">
@@ -275,7 +273,6 @@
 
 </div>
 
-<!-- MODAL EDIÇÃO -->
 <div class="modal-overlay hidden" id="modalOverlay">
   <div class="modal">
     <h3 id="modalTitulo">Editar entrada</h3>
@@ -307,7 +304,6 @@
   </div>
 </div>
 
-<!-- MODAL EXCLUSÃO -->
 <div class="modal-overlay hidden" id="deleteOverlay">
   <div class="modal">
     <h3>Remover entrada</h3>
@@ -351,9 +347,11 @@ async function lerDados() {
   });
   if (!res.ok) throw new Error('Erro ao ler dados: ' + res.status);
   const json = await res.json();
-  // garante que sempre retorna array
   const dados = json.record;
-  return Array.isArray(dados) ? dados : (dados.candidatos || []);
+  
+  if (Array.isArray(dados)) return dados;
+  if (dados && Array.isArray(dados.candidatos)) return dados.candidatos;
+  return [];
 }
 
 async function salvarDados(dados) {
@@ -448,12 +446,16 @@ async function adicionar() {
     if (duplicado) {
       msg.textContent = 'Número de inscrição já cadastrado.';
       msg.className = 'msg err';
+      btn.disabled = false;
+      btn.textContent = 'Adicionar ao ranking';
       return;
     }
 
     dados.push({
       id: Date.now().toString(36) + Math.random().toString(36).slice(2),
-      nome, insc, pontos,
+      nome, 
+      insc, 
+      pontos,
       pin: hashPin(pin)
     });
 
