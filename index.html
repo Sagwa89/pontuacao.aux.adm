@@ -272,7 +272,7 @@
         <input type="password" id="inPin" placeholder="Crie um PIN numérico" maxlength="10">
       </label>
       <p class="hint">⚠️ Guarde o seu PIN — precisará dele para editar ou remover o seu dado.</p>
-      <button class="btn-primary" id="btnAdicionar" onclick="adicionar()">Registar e Ver Ranking</button>
+      <button class="btn-primary" id="btnAdicionar" onclick="adicionar()">Registrar e Ver Ranking</button>
       <div class="msg" id="msgForm"></div>
     </div>
   </div>
@@ -520,7 +520,7 @@ async function adicionar() {
     console.error(e);
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Registar e Ver Ranking';
+    btn.textContent = 'Registrar e Ver Ranking';
   }
 }
 
