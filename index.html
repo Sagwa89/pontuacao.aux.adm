@@ -395,7 +395,7 @@ function esc(s) {
 function renderizar(dados) {
   const lista = document.getElementById('rankingList');
   if (!dados || !dados.length) {
-    lista.innerHTML = '<div class="empty">Nenhum candidato registado ainda. Seja o primeiro!</div>';
+    lista.innerHTML = '<div class="empty">Nenhum candidato registrado ainda. Seja o primeiro!</div>';
     return;
   }
 
@@ -488,7 +488,7 @@ async function adicionar() {
 
     const duplicado = dados.find(d => d.insc === insc);
     if (duplicado) {
-      msg.textContent = 'Número de inscrição já registado.';
+      msg.textContent = 'Número de inscrição já registrado.';
       msg.className = 'msg err';
       return;
     }
@@ -579,7 +579,7 @@ async function salvarEdicao() {
 
   const dup = dados.find(d => d.insc === insc && d.id !== editId);
   if (dup) {
-    msg.textContent = 'A inscrição já existe noutro registo.';
+    msg.textContent = 'A inscrição já existe noutro registro.';
     msg.className = 'msg err';
     return;
   }
