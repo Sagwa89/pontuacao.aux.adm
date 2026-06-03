@@ -232,7 +232,7 @@
 
 <header>
   <h1>🏆 Ranking de Candidatos</h1>
-  <p>Insira sua pontuação e acompanhe sua posição</p>
+  <p>Insira a sua pontuação e acompanhe a sua posição</p>
 </header>
 
 <div class="wrap">
@@ -240,12 +240,12 @@
   <div class="ranking-section">
     <div class="section-title">Classificação geral</div>
     <div class="ranking-list" id="rankingList">
-      <div class="loading"><span class="spinner"></span>Carregando ranking...</div>
+      <div class="loading"><span class="spinner"></span>A carregar ranking...</div>
     </div>
   </div>
 
   <div class="form-card">
-    <h2>Adicionar minha pontuação</h2>
+    <h2>Adicionar a minha pontuação</h2>
     <div class="fields">
       <label>
         Nome completo
@@ -265,7 +265,7 @@
         PIN (para editar depois)
         <input type="password" id="inPin" placeholder="Crie um PIN numérico" maxlength="10">
       </label>
-      <p class="hint">⚠️ Guarde seu PIN — você precisará dele para editar ou remover seu dado.</p>
+      <p class="hint">⚠️ Guarde o seu PIN — precisará dele para editar ou remover o seu dado.</p>
       <button class="btn-primary" id="btnAdicionar" onclick="adicionar()">Adicionar ao ranking</button>
       <div class="msg" id="msgForm"></div>
     </div>
@@ -293,13 +293,13 @@
       </div>
       <label>
         PIN atual
-        <input type="password" id="mPin" placeholder="Digite seu PIN">
+        <input type="password" id="mPin" placeholder="Digite o seu PIN">
       </label>
       <div class="msg" id="msgModal"></div>
     </div>
     <div class="modal-btns">
       <button class="btn-secondary" onclick="fecharModal()">Cancelar</button>
-      <button class="btn-primary" id="btnSalvar" onclick="salvarEdicao()">Salvar</button>
+      <button class="btn-primary" id="btnSalvar" onclick="salvarEdicao()">Guardar</button>
     </div>
   </div>
 </div>
@@ -308,7 +308,7 @@
   <div class="modal">
     <h3>Remover entrada</h3>
     <div class="fields">
-      <p style="font-size:0.9rem;color:var(--muted)">Digite seu PIN ou a senha de administrador.</p>
+      <p style="font-size:0.9rem;color:var(--muted)">Digite o seu PIN ou a senha de administrador.</p>
       <label>
         PIN ou senha admin
         <input type="password" id="dPin" placeholder="PIN do candidato ou senha admin">
@@ -345,29 +345,41 @@ async function lerDados() {
   const res = await fetch(BASE_URL + '/latest', {
     headers: { 'X-Access-Key': ACCESS_KEY }
   });
-  if (!res.ok) throw new Error('Erro ao ler dados: ' + res.status);
-  const json = await res.json();
   
-  // No JSONBin V3, os dados ficam encapsulados dentro de "record"
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(`Erro ${res.status} na leitura: ${err.message || 'Verifique as chaves'}`);
+  }
+  
+  const json = await res.json();
   const dados = json.record;
   
-  // Retorna o array de forma segura, garantindo que o ranking inicie vazio caso o bin seja resetado
+  // Extrair os dados independentemente do formato (array direto ou { candidatos: [] })
   if (!dados) return [];
   if (Array.isArray(dados)) return dados;
   if (dados.candidatos && Array.isArray(dados.candidatos)) return dados.candidatos;
+  
   return [];
 }
 
-async function salvarDados(dados) {
+async function salvarDados(dadosArray) {
+  // Guardamos no formato { candidatos: [...] } para corresponder exatamente ao que tem no seu JSONBin
+  const payload = { candidatos: dadosArray };
+
   const res = await fetch(BASE_URL, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
-      'X-Master-Key': MASTER_KEY
+      'X-Master-Key': MASTER_KEY,
+      'X-Bin-Versioning': 'false' // Correção fundamental para não ser bloqueado no plano gratuito
     },
-    body: JSON.stringify(dados)
+    body: JSON.stringify(payload)
   });
-  if (!res.ok) throw new Error('Erro ao salvar dados: ' + res.status);
+  
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(`Erro ${res.status} ao guardar: ${err.message || 'Sem permissão'}`);
+  }
   return res.json();
 }
 
@@ -379,7 +391,7 @@ function esc(s) {
 function renderizar(dados) {
   const lista = document.getElementById('rankingList');
   if (!dados || !dados.length) {
-    lista.innerHTML = '<div class="empty">Nenhum candidato cadastrado ainda. Seja o primeiro!</div>';
+    lista.innerHTML = '<div class="empty">Nenhum candidato registado ainda. Seja o primeiro!</div>';
     return;
   }
 
@@ -409,12 +421,12 @@ function renderizar(dados) {
 
 async function carregarERenderizar() {
   const lista = document.getElementById('rankingList');
-  lista.innerHTML = '<div class="loading"><span class="spinner"></span>Carregando ranking...</div>';
+  lista.innerHTML = '<div class="loading"><span class="spinner"></span>A carregar ranking...</div>';
   try {
     const dados = await lerDados();
     renderizar(dados);
   } catch(e) {
-    lista.innerHTML = '<div class="empty">Erro ao carregar ranking. Tente recarregar a página.</div>';
+    lista.innerHTML = `<div class="empty" style="color:var(--danger)">${e.message}</div>`;
     console.error(e);
   }
 }
@@ -435,20 +447,20 @@ async function adicionar() {
     return;
   }
   if (pin.length < 4) {
-    msg.textContent = 'PIN deve ter pelo menos 4 dígitos.';
+    msg.textContent = 'O PIN deve ter pelo menos 4 dígitos.';
     msg.className = 'msg err';
     return;
   }
 
   btn.disabled = true;
-  btn.textContent = 'Salvando...';
+  btn.textContent = 'A guardar...';
 
   try {
     const dados = await lerDados();
 
     const duplicado = dados.find(d => d.insc === insc);
     if (duplicado) {
-      msg.textContent = 'Número de inscrição já cadastrado.';
+      msg.textContent = 'Número de inscrição já registado.';
       msg.className = 'msg err';
       return;
     }
@@ -466,11 +478,11 @@ async function adicionar() {
     document.getElementById('inInsc').value = '';
     document.getElementById('inPontos').value = '';
     document.getElementById('inPin').value = '';
-    msg.textContent = 'Cadastrado com sucesso! Seu dado aparece no ranking acima.';
+    msg.textContent = 'Registado com sucesso! O seu dado aparece no ranking acima.';
     msg.className = 'msg ok';
-    setTimeout(() => msg.className = 'msg', 3000);
+    setTimeout(() => msg.className = 'msg', 4000);
   } catch(e) {
-    msg.textContent = 'Erro ao salvar. Tente novamente.';
+    msg.textContent = e.message; // Mostra o erro exato no ecrã
     msg.className = 'msg err';
     console.error(e);
   } finally {
@@ -497,7 +509,7 @@ async function abrirEdicao(id) {
     document.getElementById('modalTitulo').textContent = 'Editar: ' + d.nome;
     document.getElementById('modalOverlay').classList.remove('hidden');
   } catch(e) {
-    alert('Erro ao carregar dados para edição.');
+    alert('Erro: ' + e.message);
   }
 }
 
@@ -534,13 +546,13 @@ async function salvarEdicao() {
 
   const dup = dados.find(d => d.insc === insc && d.id !== editId);
   if (dup) {
-    msg.textContent = 'Inscrição já existe em outro cadastro.';
+    msg.textContent = 'A inscrição já existe noutro registo.';
     msg.className = 'msg err';
     return;
   }
 
   btn.disabled = true;
-  btn.textContent = 'Salvando...';
+  btn.textContent = 'A guardar...';
 
   try {
     dados[idx] = { ...dados[idx], nome, insc, pontos };
@@ -548,11 +560,11 @@ async function salvarEdicao() {
     renderizar(dados);
     fecharModal();
   } catch(e) {
-    msg.textContent = 'Erro ao salvar. Tente novamente.';
+    msg.textContent = e.message;
     msg.className = 'msg err';
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Salvar';
+    btn.textContent = 'Guardar';
   }
 }
 
@@ -568,7 +580,7 @@ async function abrirDelete(id) {
     document.getElementById('msgDelete').className = 'msg';
     document.getElementById('deleteOverlay').classList.remove('hidden');
   } catch(e) {
-    alert('Erro ao carregar dados.');
+    alert('Erro: ' + e.message);
   }
 }
 
@@ -594,7 +606,7 @@ async function confirmarDelete() {
   }
 
   btn.disabled = true;
-  btn.textContent = 'Removendo...';
+  btn.textContent = 'A remover...';
 
   try {
     dados.splice(idx, 1);
@@ -602,7 +614,7 @@ async function confirmarDelete() {
     renderizar(dados);
     fecharDelete();
   } catch(e) {
-    msg.textContent = 'Erro ao remover. Tente novamente.';
+    msg.textContent = e.message;
     msg.className = 'msg err';
     btn.disabled = false;
     btn.textContent = 'Remover';
