@@ -66,7 +66,13 @@
     transition: box-shadow 0.15s;
   }
   .rank-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
-  .rank-card.mine { border-color: var(--accent); border-width: 1px; background: var(--accent-light); }
+  
+  /* DESTAQUE DO PRÓPRIO USUÁRIO */
+  .rank-card.mine { 
+    border-color: var(--accent); 
+    border-width: 2px; 
+    background: var(--accent-light); 
+  }
 
   .rank-pos {
     font-size: 0.85rem;
@@ -110,10 +116,11 @@
     text-align: center;
     padding: 2rem 1rem;
     color: var(--muted);
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     background: var(--surface);
     border-radius: 10px;
     border: 0.5px dashed var(--border);
+    line-height: 1.5;
   }
 
   /* LOADING */
@@ -232,7 +239,7 @@
 
 <header>
   <h1>🏆 Ranking de Candidatos</h1>
-  <p>Insira a sua pontuação e acompanhe a sua posição</p>
+  <p>Insira a sua pontuação para libertar a classificação</p>
 </header>
 
 <div class="wrap">
@@ -240,8 +247,7 @@
   <div class="ranking-section">
     <div class="section-title">Classificação geral</div>
     <div class="ranking-list" id="rankingList">
-      <div class="loading"><span class="spinner"></span>A carregar ranking...</div>
-    </div>
+      </div>
   </div>
 
   <div class="form-card">
@@ -266,7 +272,7 @@
         <input type="password" id="inPin" placeholder="Crie um PIN numérico" maxlength="10">
       </label>
       <p class="hint">⚠️ Guarde o seu PIN — precisará dele para editar ou remover o seu dado.</p>
-      <button class="btn-primary" id="btnAdicionar" onclick="adicionar()">Adicionar ao ranking</button>
+      <button class="btn-primary" id="btnAdicionar" onclick="adicionar()">Registar e Ver Ranking</button>
       <div class="msg" id="msgForm"></div>
     </div>
   </div>
@@ -325,8 +331,8 @@
 <script>
 // ── JSONBin config ──────────────────────────────────────────────
 const BIN_ID     = '6a2049c8f5f4af5e29b32758';
+// MASTER_KEY usada para TUDO (Lê e Escreve sem erro 401)
 const MASTER_KEY = '$2a$10$H4cj8in117Rkj0LEcvosqujmvU3bEguyTbq7QhO6oK6xDC33EpPEK';
-const ACCESS_KEY = '$2a$10$dkBYK.y.zLdQ1oBGEtC7fevokpDGu7Bu2E2GUgCmcVLHKLMV.KueS';
 const BASE_URL   = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
 
 // ── helpers ─────────────────────────────────────────────────────
@@ -343,7 +349,7 @@ let deleteId = null;
 // ── JSONBin read/write ───────────────────────────────────────────
 async function lerDados() {
   const res = await fetch(BASE_URL + '/latest', {
-    headers: { 'X-Master-Key': MASTER_KEY }
+    headers: { 'X-Master-Key': MASTER_KEY } // <- CORREÇÃO DO ERRO 401 AQUI
   });
   
   if (!res.ok) {
@@ -354,7 +360,6 @@ async function lerDados() {
   const json = await res.json();
   const dados = json.record;
   
-  // Extrair os dados independentemente do formato (array direto ou { candidatos: [] })
   if (!dados) return [];
   if (Array.isArray(dados)) return dados;
   if (dados.candidatos && Array.isArray(dados.candidatos)) return dados.candidatos;
@@ -363,7 +368,6 @@ async function lerDados() {
 }
 
 async function salvarDados(dadosArray) {
-  // Guardamos no formato { candidatos: [...] } para corresponder exatamente ao que tem no seu JSONBin
   const payload = { candidatos: dadosArray };
 
   const res = await fetch(BASE_URL, {
@@ -371,7 +375,7 @@ async function salvarDados(dadosArray) {
     headers: {
       'Content-Type': 'application/json',
       'X-Master-Key': MASTER_KEY,
-      'X-Bin-Versioning': 'false' // Correção fundamental para não ser bloqueado no plano gratuito
+      'X-Bin-Versioning': 'false' // <- CORREÇÃO PARA NÃO BLOQUEAR A CONTA GRATUITA
     },
     body: JSON.stringify(payload)
   });
@@ -398,13 +402,19 @@ function renderizar(dados) {
   const sorted = [...dados].sort((a, b) => b.pontos - a.pontos);
   const posClass = ['p1','p2','p3'];
   const medals = ['🥇','🥈','🥉'];
+  
+  const minhaInscricao = localStorage.getItem('minhaInscricao');
 
   lista.innerHTML = sorted.map((d, i) => {
     const pos = i + 1;
     const cls = posClass[i] || '';
     const medal = medals[i] || pos;
+    
+    // Destaca o usuário em verde
+    const cardClass = (d.insc === minhaInscricao) ? 'rank-card mine' : 'rank-card';
+
     return `
-      <div class="rank-card" data-id="${d.id}">
+      <div class="${cardClass}" data-id="${d.id}">
         <div class="rank-pos ${cls}">${medal}</div>
         <div class="rank-info">
           <div class="rank-name">${esc(d.nome)}</div>
@@ -431,6 +441,24 @@ async function carregarERenderizar() {
   }
 }
 
+// ── Controle de Bloqueio (O Cofre) ───────────────────────────────
+function verificarAcesso() {
+  const liberado = localStorage.getItem('rankingLiberado');
+  
+  if (liberado === 'true') {
+    carregarERenderizar();
+  } else {
+    const lista = document.getElementById('rankingList');
+    lista.innerHTML = `
+      <div class="empty">
+        <span style="font-size: 2rem; display: block; margin-bottom: 0.5rem;">🔒</span>
+        <b>Ranking Oculto</b><br>
+        Preencha a sua pontuação no formulário abaixo para descobrir em que posição ficou!
+      </div>
+    `;
+  }
+}
+
 // ── adicionar ────────────────────────────────────────────────────
 async function adicionar() {
   const nome   = document.getElementById('inNome').value.trim();
@@ -453,7 +481,7 @@ async function adicionar() {
   }
 
   btn.disabled = true;
-  btn.textContent = 'A guardar...';
+  btn.textContent = 'A guardar e libertar ranking...';
 
   try {
     const dados = await lerDados();
@@ -472,22 +500,27 @@ async function adicionar() {
     });
 
     await salvarDados(dados);
+    
+    // Libera o ranking e salva quem é a pessoa
+    localStorage.setItem('rankingLiberado', 'true');
+    localStorage.setItem('minhaInscricao', insc);
+
     renderizar(dados);
 
     document.getElementById('inNome').value = '';
     document.getElementById('inInsc').value = '';
     document.getElementById('inPontos').value = '';
     document.getElementById('inPin').value = '';
-    msg.textContent = 'Registado com sucesso! O seu dado aparece no ranking acima.';
+    msg.textContent = 'Sucesso! O ranking foi libertado e você está destacado nele.';
     msg.className = 'msg ok';
-    setTimeout(() => msg.className = 'msg', 4000);
+    setTimeout(() => msg.className = 'msg', 5000);
   } catch(e) {
-    msg.textContent = e.message; // Mostra o erro exato no ecrã
+    msg.textContent = e.message;
     msg.className = 'msg err';
     console.error(e);
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Adicionar ao ranking';
+    btn.textContent = 'Registar e Ver Ranking';
   }
 }
 
@@ -557,6 +590,11 @@ async function salvarEdicao() {
   try {
     dados[idx] = { ...dados[idx], nome, insc, pontos };
     await salvarDados(dados);
+    
+    if (localStorage.getItem('minhaInscricao') === dados[idx].insc) {
+         localStorage.setItem('minhaInscricao', insc);
+    }
+    
     renderizar(dados);
     fecharModal();
   } catch(e) {
@@ -626,7 +664,7 @@ document.getElementById('modalOverlay').addEventListener('click', e => { if (e.t
 document.getElementById('deleteOverlay').addEventListener('click', e => { if (e.target === e.currentTarget) fecharDelete(); });
 
 // ── init ─────────────────────────────────────────────────────────
-carregarERenderizar();
+verificarAcesso();
 </script>
 </body>
 </html>
