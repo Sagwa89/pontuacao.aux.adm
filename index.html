@@ -343,7 +343,7 @@ let deleteId = null;
 // ── JSONBin read/write ───────────────────────────────────────────
 async function lerDados() {
   const res = await fetch(BASE_URL + '/latest', {
-    headers: { 'X-Access-Key': ACCESS_KEY }
+    headers: { 'X-Master-Key': MASTER_KEY }
   });
   
   if (!res.ok) {
